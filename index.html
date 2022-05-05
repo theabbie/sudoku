@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      @font-face {
+        font-family: Gilroy;
+        src: url("Gilroy.otf") format("opentype");
+      }
+      body {
+        margin: 0;
+        overflow-y: hidden;
+        background-color: #121212;
+      }
+      * {
+        box-sizing: border-box;
+        font-family: Gilroy;
+        user-select: none;
+      }
+      #board {
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      line,
+      path,
+      circle {
+        stroke-linecap: round;
+        stroke-dasharray: 1000;
+        stroke-dashoffset: 1000;
+        animation: draw 0.6s linear forwards;
+      }
+      line {
+        animation-duration: 1s;
+      }
+      text tspan {
+        fill: #fff;
+        text-anchor: middle;
+        fill: #121212;
+        stroke: white;
+        stroke-width: 1px;
+      }
+      @keyframes draw {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+    </style>
+    <title>Sudoku Game</title>
+  </head>
+  <body>
+    <svg id="board"></svg>
+  </body>
+  <script>
+    let game = {};
+    let throttle;
+    const wait = (fn, delay) =>
+      new Promise((resolve) =>
+        setTimeout(() => {
+          if (fn) fn();
+          resolve();
+        }, delay)
+      );
+    const board = document.querySelector("#board");
+    const windowWidth = "100%";
+    const windowHeight = "100vh";
+    board.setAttribute("width", windowWidth);
+    board.setAttribute("height", windowHeight);
+    board.style.backgroundColor = "#121212";
+
+    class Sudoku {
+      static getPos(board, i, j) {
+        let pos = new Set();
+        for (let i = 1; i <= 9; i++) {
+          pos.add(i);
+        }
+        let [ci, cj] = [i - (i % 3), j - (j % 3)];
+        for (let a = 0; a < 3; a++) {
+          for (let b = 0; b < 3; b++) {
+            if (board[ci + a][cj + b] != 0 && pos.has(board[ci + a][cj + b])) {
+              pos.delete(board[ci + a][cj + b]);
+            }
+          }
+        }
+        for (let a = 0; a < 9; a++) {
+          if (pos.has(board[i][a])) {
+            pos.delete(board[i][a]);
+          }
+          if (pos.has(board[a][j])) {
+            pos.delete(board[a][j]);
+          }
+        }
+        pos = [...pos];
+        pos.sort((a, b) => Math.random() - 0.5);
+        return pos;
+      }
+
+      static solve(board, spi, spaces) {
+        if (spi >= spaces.length) {
+          return board;
+        }
+        if (spi < spaces.length) {
+          let [i, j] = spaces[spi];
+          let pos = Sudoku.getPos(board, i, j);
+          let currboard = JSON.parse(JSON.stringify(board));
+          for (let p of pos) {
+            currboard[i][j] = p;
+            let currsolution = Sudoku.solve(currboard, spi + 1, spaces);
+            if (currsolution) {
+              return currsolution;
+            }
+          }
+        }
+        return false;
+      }
+
+      static solveSudoku(board) {
+        let spaces = [];
+        for (let i = 0; i < 9; i++) {
+          for (let j = 0; j < 9; j++) {
+            if (board[i][j] == 0) {
+              spaces.push([i, j]);
+            }
+          }
+        }
+        return this.solve(board, 0, spaces);
+      }
+    }
+
+    function drawLine(x1, y1, x2, y2, color, thick) {
+      const line = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "line"
+      );
+      line.setAttribute("x1", x1);
+      line.setAttribute("y1", y1);
+      line.setAttribute("x2", x2);
+      line.setAttribute("y2", y2);
+      line.setAttribute("stroke", color || "white");
+      line.setAttribute("stroke-width", game.strokeWidth * (thick ? 3 : 1));
+      board.appendChild(line);
+    }
+
+    async function drawBoard() {
+      board.querySelectorAll("*").forEach((el) => el.remove());
+      game.w = board.clientWidth;
+      game.h = board.clientHeight;
+      game.side = Math.min(game.w, game.h) / 1.2;
+      game.boxSide = game.side / 9;
+      game.cellPadding = game.boxSide / 18;
+      game.strokeWidth = game.boxSide / 38;
+      game.wBegin = (game.w - game.side) / 2;
+      game.hBegin = (game.h - game.side) / 2;
+      for (let i = 0; i <= 9; i++) {
+        await wait(
+          () =>
+            drawLine(
+              game.wBegin,
+              game.hBegin + i * game.boxSide,
+              game.wBegin + game.side,
+              game.hBegin + i * game.boxSide,
+              null,
+              i % 3 == 0
+            ),
+          (i - 1) * 45
+        );
+      }
+      for (let i = 0; i <= 9; i++) {
+        await wait(
+          () =>
+            drawLine(
+              game.wBegin + i * game.boxSide,
+              game.hBegin,
+              game.wBegin + i * game.boxSide,
+              game.hBegin + game.side,
+              null,
+              i % 3 == 0
+            ),
+          0
+        );
+      }
+      for (let i = 0; i < 9; i++) {
+        for (let j = 0; j < 9; j++) {
+          markCell(i, j);
+        }
+      }
+    }
+
+    function markCell(x, y) {
+      let cell = document.querySelector(`#cell_${x}_${y}`);
+      if (!cell) {
+        cell = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        cell.setAttribute("id", `cell_${x}_${y}`);
+        board.appendChild(cell);
+      }
+      cell.style.fontSize = `${Math.floor(game.boxSide)}px`;
+      cell.style.fontFamily = "Gilroy";
+      cell.style.fill = "#fff";
+      cell.setAttribute("x", game.wBegin + (x + 0.25) * game.boxSide);
+      cell.setAttribute("y", game.hBegin + (y + 0.875) * game.boxSide);
+      cell.innerHTML = game.board[x][y];
+    }
+
+    function handleClick(e) {
+      const y = Math.floor((e.clientY - game.hBegin) / game.boxSide);
+      const x = Math.floor((e.clientX - game.wBegin) / game.boxSide);
+      if (x >= 0 && x <= 9 && y >= 0 && y <= 9) {
+        game.board[x][y] = 1 + (game.board[x][y] % 9);
+        markCell(x, y);
+      }
+    }
+
+    function initGame() {
+      game.board = Array.from({ length: 9 }, () =>
+        Array.from({ length: 9 }, () => 0)
+      );
+      game.board = Sudoku.solveSudoku(game.board);
+      drawBoard();
+      board.addEventListener("click", handleClick);
+      window.addEventListener("keydown", (e) => {
+        if (e.keyCode == 27) {
+          // undo();
+        }
+      });
+      window.addEventListener("resize", () => {
+        clearTimeout(throttle);
+        throttle = setTimeout(() => {
+          drawBoard();
+        }, 100);
+      });
+    }
+
+    window.onload = initGame;
+  </script>
+</html>
