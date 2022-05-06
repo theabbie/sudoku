@@ -71,44 +71,38 @@
 
     class Sudoku {
       static getPos(board, i, j) {
-        let pos = new Set();
-        for (let i = 1; i <= 9; i++) {
-          pos.add(i);
-        }
+        let pos = Array.from({ length: 9 }, () => 0);
         let [ci, cj] = [i - (i % 3), j - (j % 3)];
         for (let a = 0; a < 3; a++) {
           for (let b = 0; b < 3; b++) {
-            if (board[ci + a][cj + b] != 0 && pos.has(board[ci + a][cj + b])) {
-              pos.delete(board[ci + a][cj + b]);
+            if (board[ci + a][cj + b] != 0) {
+              pos[board[ci + a][cj + b] - 1]++;
             }
           }
         }
         for (let a = 0; a < 9; a++) {
-          if (pos.has(board[i][a])) {
-            pos.delete(board[i][a]);
-          }
-          if (pos.has(board[a][j])) {
-            pos.delete(board[a][j]);
-          }
+          pos[board[i][a] - 1]++;
+          pos[board[a][j]]++;
         }
-        pos = [...pos];
-        pos.sort((a, b) => Math.random() - 0.5);
-        return pos;
+        return [1, 2, 3, 4, 5, 6, 7, 8, 9]
+          .filter((p) => pos[p - 1] == 0)
+          .sort((a, b) => Math.random() - 0.5);
       }
 
       static solve(board, spi, spaces) {
         if (spi >= spaces.length) {
-          return board;
+          return true;
         }
         if (spi < spaces.length) {
           let [i, j] = spaces[spi];
           let pos = Sudoku.getPos(board, i, j);
-          let currboard = JSON.parse(JSON.stringify(board));
           for (let p of pos) {
-            currboard[i][j] = p;
-            let currsolution = Sudoku.solve(currboard, spi + 1, spaces);
+            board[i][j] = p;
+            let currsolution = Sudoku.solve(board, spi + 1, spaces);
             if (currsolution) {
-              return currsolution;
+              return true;
+            } else {
+              board[i][j] = 0;
             }
           }
         }
@@ -124,7 +118,24 @@
             }
           }
         }
-        return this.solve(board, 0, spaces);
+        this.solve(board, 0, spaces);
+      }
+    }
+
+    function setBoard(board, numsPerCell) {
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          let dels = Array(9 - numsPerCell);
+          for (let a = 0; a < 3; a++) {
+            for (let b = 0; b < 3; b++) {
+              let k = Math.floor(Math.random() * (9 - numsPerCell));
+              dels[k] = [3 * i + a, 3 * j + b];
+            }
+          }
+          for (let [a, b] of dels.filter((d) => d)) {
+            board[a][b] = 0;
+          }
+        }
       }
     }
 
@@ -140,6 +151,14 @@
       line.setAttribute("stroke", color || "white");
       line.setAttribute("stroke-width", game.strokeWidth * (thick ? 3 : 1));
       board.appendChild(line);
+    }
+
+    function drawNums() {
+      for (let i = 0; i < 9; i++) {
+        for (let j = 0; j < 9; j++) {
+          markCell(i, j);
+        }
+      }
     }
 
     async function drawBoard() {
@@ -180,11 +199,7 @@
           0
         );
       }
-      for (let i = 0; i < 9; i++) {
-        for (let j = 0; j < 9; j++) {
-          markCell(i, j);
-        }
-      }
+      drawNums();
     }
 
     function markCell(x, y) {
@@ -199,7 +214,9 @@
       cell.style.fill = "#fff";
       cell.setAttribute("x", game.wBegin + (x + 0.25) * game.boxSide);
       cell.setAttribute("y", game.hBegin + (y + 0.875) * game.boxSide);
-      cell.innerHTML = game.board[x][y];
+      if (game.board[x][y] != 0) {
+        cell.innerHTML = game.board[x][y];
+      }
     }
 
     function handleClick(e) {
@@ -215,12 +232,15 @@
       game.board = Array.from({ length: 9 }, () =>
         Array.from({ length: 9 }, () => 0)
       );
-      game.board = Sudoku.solveSudoku(game.board);
+      Sudoku.solveSudoku(game.board);
+      setBoard(game.board, 0);
       drawBoard();
       board.addEventListener("click", handleClick);
       window.addEventListener("keydown", (e) => {
-        if (e.keyCode == 27) {
-          // undo();
+        if (e.key == " ") {
+          Sudoku.solveSudoku(game.board);
+          console.log(game.board);
+          drawNums();
         }
       });
       window.addEventListener("resize", () => {
