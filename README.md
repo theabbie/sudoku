@@ -6,6 +6,7 @@
 
 > Sudoku is played on a grid of 9 x 9 spaces. Within the rows and columns are 9 “squares” (made up of 3 x 3 spaces). Each row, column and square (9 spaces each) needs to be filled out with the numbers 1-9, without repeating any numbers within the row, column or square.
 
+* [theabbie.github.io/sudoku](https://theabbie.github.io/sudoku)
 * Click on a tile to increment it's number by 1
     * `1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 1`
 * If some tiles have invalid value (repeated in row / column / `3X3` region) it will be marked in red.
