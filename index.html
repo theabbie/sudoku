@@ -19,6 +19,22 @@
         font-family: Gilroy;
         user-select: none;
       }
+      button {
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 20px;
+        background-color: white;
+        height: 40px;
+        width: 80px;
+        letter-spacing: 4px;
+        border: none;
+        border-radius: 20px;
+        outline: 2px solid white;
+        outline-offset: 2px;
+        text-shadow: black;
+        font-weight: bolder;
+      }
       #board {
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
@@ -50,6 +66,7 @@
     <title>Sudoku Game</title>
   </head>
   <body>
+    <button onclick="solveBoard()">SOLVE</button>
     <svg id="board"></svg>
   </body>
   <script>
@@ -70,7 +87,7 @@
     board.style.backgroundColor = "#121212";
 
     class Sudoku {
-      static getPos(board, i, j) {
+      static getCtr(board, i, j) {
         let pos = Array.from({ length: 9 }, () => 0);
         let [ci, cj] = [i - (i % 3), j - (j % 3)];
         for (let a = 0; a < 3; a++) {
@@ -81,18 +98,21 @@
           }
         }
         for (let a = 0; a < 9; a++) {
-          pos[board[i][a] - 1]++;
-          pos[board[a][j] - 1]++;
+          if (board[i][a] != 0) pos[board[i][a] - 1]++;
+          if (board[a][j] != 0) pos[board[a][j] - 1]++;
         }
+        return pos;
+      }
+
+      static getPos(board, i, j) {
+        let pos = Sudoku.getCtr(board, i, j);
         return [1, 2, 3, 4, 5, 6, 7, 8, 9]
           .filter((p) => pos[p - 1] == 0)
           .sort((a, b) => Math.random() - 0.5);
       }
 
       static solve(board, spi, spaces) {
-        if (spi >= spaces.length) {
-          return true;
-        }
+        if (spi >= spaces.length) return true;
         if (spi < spaces.length) {
           let [i, j] = spaces[spi];
           let pos = Sudoku.getPos(board, i, j);
@@ -182,7 +202,7 @@
               null,
               i % 3 == 0
             ),
-          (i - 1) * 45
+          (i - 1) * 14
         );
       }
       for (let i = 0; i <= 9; i++) {
@@ -196,13 +216,16 @@
               null,
               i % 3 == 0
             ),
-          0
+          (i - 1) * 7
         );
       }
       drawNums();
     }
 
     function markCell(x, y) {
+      let val = game.board[x][y];
+      let color = "#fff";
+      if (Sudoku.getCtr(game.board, x, y)[val - 1] != 3) color = "red";
       let cell = document.querySelector(`#cell_${x}_${y}`);
       if (!cell) {
         cell = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -211,11 +234,11 @@
       }
       cell.style.fontSize = `${Math.floor(game.boxSide)}px`;
       cell.style.fontFamily = "Gilroy";
-      cell.style.fill = "#fff";
+      cell.style.fill = color;
       cell.setAttribute("x", game.wBegin + (x + 0.25) * game.boxSide);
       cell.setAttribute("y", game.hBegin + (y + 0.875) * game.boxSide);
-      if (game.board[x][y] != 0) {
-        cell.innerHTML = game.board[x][y];
+      if (val != 0) {
+        cell.innerHTML = val;
       }
     }
 
@@ -224,8 +247,13 @@
       const x = Math.floor((e.clientX - game.wBegin) / game.boxSide);
       if (x >= 0 && x <= 9 && y >= 0 && y <= 9) {
         game.board[x][y] = 1 + (game.board[x][y] % 9);
-        markCell(x, y);
+        drawNums();
       }
+    }
+
+    function solveBoard() {
+      Sudoku.solveSudoku(game.board);
+      drawNums();
     }
 
     function initGame() {
@@ -238,16 +266,12 @@
       board.addEventListener("click", handleClick);
       window.addEventListener("keydown", (e) => {
         if (e.key == " ") {
-          Sudoku.solveSudoku(game.board);
-          console.log(game.board);
-          drawNums();
+          solveBoard();
         }
       });
       window.addEventListener("resize", () => {
         clearTimeout(throttle);
-        throttle = setTimeout(() => {
-          drawBoard();
-        }, 100);
+        throttle = setTimeout(drawBoard, 100);
       });
     }
 
